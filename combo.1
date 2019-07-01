@@ -8,13 +8,16 @@ combo \- words combo generator.
 
 .SH OPTIONS
 .TP
+.BI \-i " in_file"
+get words from in_file either.
+.TP
 .BI \-m " m"
 print only m-word repeated combinations.
 .TP
 .B \-n " n"
 print only n-word length combinations.
 .TP
-.BI \-o " file"
+.BI \-o " out_file"
 write output to the file.
 .TP
 .BI \-v
@@ -25,6 +28,9 @@ add combinations where seps are used to separate words in combinations.
 .TP
 .BI \-r
 add reversed words to the list.
+.TP
+.BI \-+
+get words from stdin either.
 
 .SH SEE ALSO
 .BR dmenu (1),

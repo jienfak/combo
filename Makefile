@@ -17,14 +17,14 @@ options:
 
 .c.o:
 	@echo CC $<
-	@${CC} -c ${CFLAGS} $<
+	${CC} -c ${CFLAGS} $<
 
 ${OBJ}: config.mk
 
-swarp: ${OBJ}
+$(TARGET): ${OBJ}
 	@echo LD $@
-	@${LD} -o $@ ${OBJ} ${LDFLAGS}
-	@strip $@
+	${LD} -g -o $@ ${OBJ} ${LDFLAGS}
+#@strip $@
 
 clean:
 	@echo Cleaning
