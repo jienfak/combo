@@ -3,10 +3,14 @@
 combo \- words combo generator.
 .SH SYNOPSIS
 .B combo
-.RB [ \-v ]
+.RB [options]
+.RB [words]
 .SH DESCRIPTION
 
 .SH OPTIONS
+.TP
+.BI \-a " maxwordsamount"
+set words maximum to allocate memory for them.
 .TP
 .BI \-i " in_file"
 get words from in_file either.
@@ -14,7 +18,7 @@ get words from in_file either.
 .BI \-m " m"
 print only m-word repeated combinations.
 .TP
-.B \-n " n"
+.BI \-n " n"
 print only n-word length combinations.
 .TP
 .BI \-o " out_file"

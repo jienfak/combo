@@ -37,5 +37,3 @@ make uninstall
 ```
 ---
 To get help read 'man combo'.
-
-**Enjoy.**

@@ -1,48 +1,78 @@
-#include "arg.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
 
+#define USAGE (usage(argv0))
+/* suckless 'arg.h' */
+#define ARGBEGIN	for (argv0 = *argv, argv++, argc--;\
+					argv[0] && argv[0][0] == '-'\
+					&& argv[0][1];\
+					--argc, ++argv) {\
+				char argc_;\
+				char **argv_;\
+				int brk_;\
+				if (argv[0][1] == '-' && argv[0][2] == '\0') {\
+					++argv;\
+					--argc;\
+					break;\
+				}\
+				for (brk_ = 0, argv[0]++, argv_ = argv;\
+						argv[0][0] && !brk_;\
+						argv[0]++) {\
+					if (argv_ != argv)\
+						break;\
+					argc_ = argv[0][0];\
+					switch (argc_)
+#define ARGEND			}\
+			}
+
+#define ARGC()		argc_
+
+#define EARGF(x)	((argv[0][1] == '\0' && argv[1] == NULL)?\
+				((x), abort(), (char *)0) :\
+				(brk_ = 1, (argv[0][1] != '\0')?\
+					(&argv[0][1]) :\
+					(argc--, argv++, argv[0])))
+
+#define ARGF()		((argv[0][1] == '\0' && argv[1] == NULL)?\
+				(char *)0 :\
+				(brk_ = 1, (argv[0][1] != '\0')?\
+					(&argv[0][1]) :\
+					(argc--, argv++, argv[0])))
+
 typedef unsigned long ul;
 typedef unsigned short us;
 
+/* Options. */
+struct Options {
+	char *maxwordsamount;
+	char *nwords;
+	char *maxreps;
+	char *seps;
+	char *out;
+	char *in;
+	us std_in;
+	us rev;
+};
+/* Common. */
+static void    die(const char *errstr, ...);
+static void    usage(const char *argv0);
+/* Strings. */
+static ul      strchomp(char *str);
+static char   *strrev(char *dest, char *str);
+/* String lists. */
+static ul      strsrev(char *dst[], char *src[], const ul la);
+/* Lightweight math. */
+static ul      power(const ul num, us n);
+/* File functions. */
+static FILE *fopenin(const char *path);
+static FILE *fopenout(const char *path);
+static ul    fgetlines(char *lines[], FILE *file);
 
-#define WORDS_MAX 256
+static void fprintcombos(FILE *);
 
-char *argv0;
-static char *opt_nwords  = NULL;
-static char *opt_maxreps = NULL;
-static char *opt_seps    = NULL;
-static char *opt_out     = NULL;
-static char *opt_in      = NULL;
-static us opt_stdin = 0;
-static us opt_rev   = 0;
-
-static char **words;
-static ul  wa;
-static ul wa0;
-/* Standard input and outputs. */
-static FILE *input;
-static FILE *output;
-
-void   die(const char *errstr, ...);
-void   usage(void);
-ul     chomp(char *str);
-char   *strrev(char *dest, char *str);
-ul     power(ul num, us n);
-
-void openinput(void);
-void openstdin(void);
-void openoutput(void);
-void openstdout(void);
-void printcombos(void);
-void getwordsfrominput(void);
-void addwordsfrominput(void);
-
-void
-die(const char *errstr, ...)
-{
+void die(const char *errstr, ...){
 	va_list ap;
 	va_start(ap, errstr);
 	vfprintf(stderr, errstr, ap);
@@ -50,201 +80,195 @@ die(const char *errstr, ...)
 	exit(1);
 }
 
-void
-usage(void)
-{
-	die("usage: %s [-vr] [-i in_file] [-m max_reps] [-n words_number] [-o out_file] [-s seps] [words]\n" , argv0);
+void usage(const char *argv0){
+	die("usage: %s [-vr+] [-a maxwordsamount] [-i in_file] [-m max_reps] [-n words_number] [-o out_file] [-s seps] [words]\n" , argv0);
 }
 
-ul
-chomp(char *str)
-{
-	ul i = strlen(str);
-	if (str[i-1] == '\n'){
-		if (str[i-2] == '\r') {
-			str[i-2] = '\0';
-			return i-2;
-		}
-		str[i-1] = '\0';
-		return i-1;
+ul strchomp(char *s){
+	/* It deletes one the last '\n' character if it has and returns new length. */
+	ul l = strlen(s);
+	if (s[l-1]=='\r'){
+		if (s[l-2]=='\n') l-=2;
+	} else if (s[l-1]=='\n') {
+		l-=1;
 	}
-	return i;
+	s[l] = '\0';
+	return l;
 }
 
-char
-*strrev(char *dest, char *str){
-	char *pbuf = malloc( sizeof(char) * strlen(str) );
+char *strrev(char *dst, char *src){
+	/* Copy reversed string  into the dest. */
+	char *pbuf = malloc( sizeof(char) * strlen(src) );
 	char *pbuf0 = pbuf;
 	ul len = 0;
 
 	while(*str) ++str, ++len;
 
 	/* To escape zero end character. */
-	--str;
+	--src;
 	for(; len ; --len){
-		*pbuf++ = *str--;
+		*pbuf++ = *src--;
 	}
-
 	*pbuf = '\0';
-	strcpy(dest, pbuf0);
 
+	strcpy(dst, pbuf0);
 	free(pbuf0);
-
-	return dest ;
+	return dst;
 }
 
-ul
-power(ul num, us n)
-{
+ul power(const ul num, us n){
 	ul buf = 1;
 	while (n--) buf *= num;
 	return buf;
 }
 
-void
-printcombos(void)
-{
+FILE *fopenin(const char *path){
+	/* Returns file to read or crashes with errors. */
+	FILE *file;
+	if(!(file=fopen(path, "r"))){
+		perror("fopen");
+		exit(1);
+	}
+	return file;
+}
+
+
+FILE *fopenout(const char *path){
+	/* Returns file to write(without appending) or crashes with errors. */
+	FILE *file;
+	if (!(file=fopen(path, "w"))) {
+		perror("fopen");
+		exit(1);
+	}
+	return file;
+}
+
+ul fgetlines(char *lines[], FILE *f){
+	/* Gets lines from file and return amount of them. */
+	ul la=0;
+	ul buflen;
+	char buf[BUFSIZ];
+	while ( fgets(buf, sizeof(buf), f)) {
+		/* Reading, memory allocation and copying from buffer. */
+		buflen = strchomp(buf);
+		lines[la] = malloc(sizeof(char) * buflen);
+		strcpy(lines[la], buf);
+		++la;
+	}
+	return la;
+}
+
+ul fcharcount(char c, FILE *f){
+	/* It counts amount of 'c' in file 'f'. */
+	ul i=0;
+	while (!feof(f))
+		if(fgetc(f)==c)++i;
+	return i;
+}
+
+ul strsrev(char *dst[], char *src[], const ul la){
+	/* Copies reversed words from 'src' to 'dst' with 'la' = lines count and returns it. */
+	ul i;
+	for (i=0;  i<la; ++i) {
+		dst[i] = malloc( sizeof(char)*strlen(src[i]) );
+		strrev(dst[i], src[i]);
+	}
+	return la;
+}
+
+
+void fprintcombos(FILE *out){
 	return;
 	ul c = 0;
 	for(;;){}
 }
 
-void
-openinput(void)
-{
-	if (opt_in) {
-		if(!(input=fopen(opt_in, "r"))){
-			perror("fopen");
-			exit(1);
-		}
-	} else {
-		openstdin();
-	}
-}
-
-void
-openstdin(void)
-{
-	input = stdin;
-}
-
-
-void
-openoutput(void)
-{
-	if (!(output=fopen(opt_in, "w"))) {
-		perror("fopen");
-		exit(1);
-	}
-}
-
-void
-openstdout(void)
-{
-	output = stdout;
-}
-
-void
-getwordsfrominput(void)
-{
-	ul buflen;
-	char buf[BUFSIZ];
-	/* Get words from file. */
-	while ( fgets(buf, sizeof(buf), input)) {
-		/* Memory allocation and copying from buffer. */
-		buflen = chomp(buf);
-		words[wa] = malloc(sizeof(char) * buflen);
-		strcpy(words[wa], buf);
-		++wa;
-	}
-}
-
-void
-addwordsrev(void)
-{
-	ul i1, i2;
-	ul wa2 = wa+wa0;
-	for (i1=0, i2=wa; i1<wa2; ++i1, ++i2){
-		/*
-		 * They are placed with offset=wa0
-		 * [1][2][3][4][5][6]
-		 *     bias
-		 *  ^---------^
-		 *     ^--------^
-		 *        ^--------^
-		 */
-		words[i2] = malloc( sizeof(char)*strlen(words[i1]) );
-		strrev(words[i2], words[i1]);
-	}
-	wa = wa2;
-}
-
-
-int
-main(int argc, char **argv)
-{
+int main(int argc, char *argv[]){
+	struct Options opt = {
+		.maxwordsamount = NULL,
+		.in             = NULL,
+		.maxreps        = NULL,
+		.nwords         = NULL,
+		.out            = NULL,
+		.seps           = NULL,
+		.rev            = 0,
+		.std_in         = 0
+	};
+	char *argv0;
 	ARGBEGIN {
-	case 'i':
-		opt_in = EARGF(usage());
-		break;
-	case 'm':
-		opt_maxreps = EARGF(usage());
-		break;
-	case 'n':
-		opt_nwords = EARGF(usage());
-		break;
-	case 'o':
-		opt_out = EARGF(usage());
-	case 'v':
-		die("%s " VERSION "\n", argv0);
-		break;
-	case 's':
-		opt_seps = EARGF(usage());
-		break;
-	case 'r':
-		opt_rev = 1;
-		break;
-	case '+':
-		opt_stdin = 1;
-		break;
-	default:
-		usage();
+		case 'a':
+			opt.maxwordsamount = EARGF(USAGE);
+			break;
+		case 'i':
+			opt.in = EARGF(USAGE);
+			break;
+		case 'm':
+			opt.maxreps = EARGF(USAGE);
+			break;
+		case 'n':
+			opt.nwords = EARGF(USAGE);
+			break;
+		case 'o':
+			opt.out = EARGF(USAGE);
+		case 'v':
+			die("%s " VERSION "\n", argv0);
+			break;
+		case 's':
+			opt.seps = EARGF(USAGE);
+			break;
+		case 'r':
+			opt.rev = 1;
+			break;
+		case '+':
+			opt.std_in = 1;
+			break;
+		default:
+			USAGE;
 	} ARGEND;
 	
-	wa = argc;
-	words = malloc(sizeof(char *) * WORDS_MAX);
+	ul wa = argc;
+	char **ws = malloc(sizeof(char *) *
+			(opt.maxwordsamount ? atoi(opt.maxwordsamount) : 1024));
 	while (argc && argv) {
 		/* Get words from arguments. */
-		words[wa-(argc--)] = *argv++ ;
+		ws[wa-(argc--)] = *argv++ ;
 	}
 
-	if ( !wa || opt_in ) {
-		/* Get words from input file. */
-		openinput();
-		getwordsfrominput();
-		fclose(input);
+	if (opt.in) {
+		/* If input option is set. */
+		wa += fgetlines(&ws[wa], fopenin(opt.in));
+		if (opt.std_in)
+			wa += fgetlines(&ws[wa], stdin);
+	} else if (!wa || opt.std_in) {
+		/* We have no words or have standard input option then read from it them. */
+		wa += fgetlines(&ws[wa], stdin);
 	}
-	wa0 = wa;
+	/* All the words we got from all the inputs counter. */
+	ul wa0 = wa;
 
-	if (opt_stdin) {
-		/* Read from stdin. */
-		openstdin();
-		getwordsfrominput();
-	}
+	if (opt.rev)
+		/* Additional reversed words.
+		 * They are placed with offset='wa0'.
+		 * [1][2][3][4][5][6]
+		 *     bias
+		 *  ^--------^
+		 *     ^--------^
+		 *        ^--------^                  */
+		wa += strsrev(&ws[wa0], &ws[0], wa0);
 
-	if (opt_rev)
-		/* Additional words. */
-		addwordsrev();
-
-	if (opt_out)
+	FILE *output;
+	if (opt.out)
 		/* Output file. */
-		openoutput();
+		output = fopenout(opt.out);
+	else
+		/* Standard output. */
+		output = stdout;
 
 
 	for (int i=0 ; i<wa ; ++i) {
-		printf("%s\n", words[i]);
+		printf("%s\n", ws[i]);
 	}
-	printcombos();
+	fprintcombos(output);
 
 	return 0;
 }
