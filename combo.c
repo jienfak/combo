@@ -60,7 +60,7 @@ static void    die(const char *errstr, ...);
 static void    usage(const char *argv0);
 /* Strings. */
 static ul      strchomp(char *str);
-static char   *strrev(char *dest, char *str);
+static char   *strrev(char *dst, char *str);
 /* String lists. */
 static ul      strsrev(char *dst[], char *src[], const ul la);
 /* Lightweight math. */
@@ -97,12 +97,12 @@ ul strchomp(char *s){
 }
 
 char *strrev(char *dst, char *src){
-	/* Copy reversed string  into the dest. */
+	/* Copy reversed string from the source into the destination. */
 	char *pbuf = malloc( sizeof(char) * strlen(src) );
 	char *pbuf0 = pbuf;
 	ul len = 0;
 
-	while(*str) ++str, ++len;
+	while(*src) ++src, ++len;
 
 	/* To escape zero end character. */
 	--src;
