@@ -59,7 +59,7 @@ struct Options {
 static void    die(const char *errstr, ...);
 static void    usage(const char *argv0);
 /* Strings. */
-static ul      strchomp(char *str);
+static ul      strchop(char *s, char c);
 static char   *strrev(char *dst, char *str);
 /* String lists. */
 static ul      strsrev(char *dst[], char *src[], const ul la);
@@ -70,7 +70,7 @@ static FILE *fopenin(const char *path);
 static FILE *fopenout(const char *path);
 static ul    fgetlines(char *lines[], FILE *file);
 
-static void fprintcombos(FILE *);
+static void fprintcombos(char *ws[], ul wa, struct Options *opt, FILE *f);
 
 void die(const char *errstr, ...){
 	va_list ap;
@@ -84,14 +84,10 @@ void usage(const char *argv0){
 	die("usage: %s [-vr+] [-a maxwordsamount] [-i in_file] [-m max_reps] [-n words_number] [-o out_file] [-s seps] [words]\n" , argv0);
 }
 
-ul strchomp(char *s){
-	/* It deletes one the last '\n' character if it has and returns new length. */
+ul strchop(char *s, char c){
+	/* It deletes one the last 'c' character if it has and returns new length. */
 	ul l = strlen(s);
-	if (s[l-1]=='\r'){
-		if (s[l-2]=='\n') l-=2;
-	} else if (s[l-1]=='\n') {
-		l-=1;
-	}
+	if (s[l-1]==c) --l;
 	s[l] = '\0';
 	return l;
 }
@@ -150,7 +146,8 @@ ul fgetlines(char *lines[], FILE *f){
 	char buf[BUFSIZ];
 	while ( fgets(buf, sizeof(buf), f)) {
 		/* Reading, memory allocation and copying from buffer. */
-		buflen = strchomp(buf);
+		buflen = strchop(buf, '\r');
+		buflen = strchop(buf, '\n');
 		lines[la] = malloc(sizeof(char) * buflen);
 		strcpy(lines[la], buf);
 		++la;
@@ -176,11 +173,39 @@ ul strsrev(char *dst[], char *src[], const ul la){
 	return la;
 }
 
-
-void fprintcombos(FILE *out){
+void fprintcombos(char *ws[], ul wa, struct Options *opt, FILE *out){
 	return;
 	ul c = 0;
 	for(;;){}
+}
+
+void *memfind(void *dump, const void *data, size_t ds, const size_t m){
+	/* Finds 'data' in 'dump' pointer area or returns NULL. */
+	for (size_t c=0; c<m ; c+=sizeof(ul)) {
+		if (!memcmp(dump, data, ds)) return dump;
+		++(ul *)dump; c+=sizeof(ul);
+	}
+	return NULL;
+}
+
+ul *strslen(char **strs){
+	/* */
+	char **pstrs = strs;
+	while (*pstrs++!=NULL);
+	return pstrs-strs-1;
+}
+
+char *strsnjoin(char *dst, char *strs[], ul n){
+	/* Joins lines from 'strs' array with size 'n' to 'dst'.*/
+	for (ul i=0; i<n ; ++i) strcat(dst, strs[i]);
+}
+
+char *strsjoin(char *dst, char *strs[]){
+	/* Joins lines from 'strs' array ending with NULL-pointer. */
+	strsnjoin();
+}
+
+void gencombomaskbyid(ul mask[], char *ws[], ul wa, ul id){
 }
 
 int main(int argc, char *argv[]){
@@ -265,10 +290,10 @@ int main(int argc, char *argv[]){
 		output = stdout;
 
 
-	for (int i=0 ; i<wa ; ++i) {
+	for (ul i=0 ; i<wa ; ++i) {
 		printf("%s\n", ws[i]);
 	}
-	fprintcombos(output);
+	fprintcombos(ws, wa, &opt, output);
 
 	return 0;
 }
