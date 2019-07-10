@@ -179,17 +179,8 @@ void fprintcombos(char *ws[], ul wa, struct Options *opt, FILE *out){
 	for(;;){}
 }
 
-void *memfind(void *dump, const void *data, size_t ds, const size_t m){
-	/* Finds 'data' in 'dump' pointer area or returns NULL. */
-	for (size_t c=0; c<m ; c+=sizeof(ul)) {
-		if (!memcmp(dump, data, ds)) return dump;
-		++(ul *)dump; c+=sizeof(ul);
-	}
-	return NULL;
-}
-
 ul *strslen(char **strs){
-	/* */
+	/* Get len of Z-strings array massive. */
 	char **pstrs = strs;
 	while (*pstrs++!=NULL);
 	return pstrs-strs-1;
@@ -198,11 +189,12 @@ ul *strslen(char **strs){
 char *strsnjoin(char *dst, char *strs[], ul n){
 	/* Joins lines from 'strs' array with size 'n' to 'dst'.*/
 	for (ul i=0; i<n ; ++i) strcat(dst, strs[i]);
+	return dst;
 }
 
 char *strsjoin(char *dst, char *strs[]){
 	/* Joins lines from 'strs' array ending with NULL-pointer. */
-	strsnjoin();
+	return strsnjoin(dst, strs, strslen(strs));
 }
 
 void gencombomaskbyid(ul mask[], char *ws[], ul wa, ul id){

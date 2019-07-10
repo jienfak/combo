@@ -1,52 +1,78 @@
-# Simple suckless makefile.
-
+# Makefile for one-bin C programs.
 include config.mk
+INFO = options artifacts paths
 
-TARGET = combo
-SRC = $(TARGET).c
-OBJ = ${SRC:.c=.o}
+.PHONY: all clean install uninstall info
+all : options strip
 
-all: options $(TARGET)
+dbg : dbgflags info $(TARGET)
+	$(LD) -o $(TARGET) $(LDFLAGS) $(OBJ)
 
-options:
-	@echo $(TARGET) build options:
-	@echo "CFLAGS   = '${CFLAGS}'"
-	@echo "LDFLAGS  = '${LDFLAGS}'"
-	@echo "CC       = '${CC}'"
-	@echo "LD       = '${LD}'"
+dbgflags :
+	$(eval CFLAGS = $(DBGFLAGS))
 
-.c.o:
-	@echo CC $<
-	${CC} -c ${CFLAGS} $<
+options :
+	@echo "'$(TARGET)' '$@':"
+	@echo "CFLAGS   = '$(CFLAGS)' ;"
+	@echo "LDFLAGS  = '$(LDFLAGS)' ;"
+	@echo "CC       = '$(CC)' ;"
+	@echo "LD       = '$(LD)' ;"
 
-${OBJ}: config.mk
+artifacts :
+	@echo "'$(TARGET)' '$@':"
+	@echo "SRC      = '$(SRC)' ;"
+	@echo "HDR      = '$(HDR)' ;"
+	@echo "OBJ      = '$(OBJ)' ;"
+	@echo "TARDIR   = '$(TARDIR);'"
+	@echo "TAR      = '$(TAR)' "
 
-$(TARGET): ${OBJ}
-	@echo LD $@
-	${LD} -g -o $@ ${OBJ} ${LDFLAGS}
-#@strip $@
+paths :
+	@echo "'$(TARGET)' '$@':"
+	@echo "ROOTDIR  = '$(ROOTDIR)';"
+	@echo "DIRPREFIX= '$(DIRPREFIX)';"
+	@echo "MANPREFIX= '$(MANPREFIX)'"
+	@echo "DESTDIR  = '$(DESTDIR)';"
 
-clean:
-	@echo Cleaning
-	@rm -f $(TARGET) ${OBJ} swarp-${VERSION}.tar.gz
+info : $(INFO)
 
-dist: clean
-	@echo Creating dist tarball
-	@mkdir -p $(TARGET)-${VERSION}
-	@cp -R LICENSE Makefile README ../config.mk ${SRC} $(TARGET)-${VERSION}
-	@tar -cf $(TARGET)-${VERSION}.tar $(TARGET)-${VERSION}
-	@gzip $(TARGET)-${VERSION}.tar
-	@rm -rf $(TARGET)-${VERSION}
 
-install: all
-	@echo Installing executable file to ${DESTDIR}${PREFIX}/bin
-	@mkdir -p ${DESTDIR}${PREFIX}/bin
-	@cp -f $(TARGET) ${DESTDIR}${PREFIX}/bin
-	@chmod 755 ${DESTDIR}${PREFIX}/bin/$(TARGET)
-	@sed "s/VERSION/$(VERSION)/g" < $(TARGET).1 > $(DESTDIR)$(MANPREFIX)/man1/$(TARGET).1
+$(TARGET) : $(OBJ)
+	@echo "[$@]"
+	$(LD) -o $@ $(OBJ) $(CFLAGS)
 
-uninstall:
-	@echo Removing executable file from ${DESTDIR}${PREFIX}/bin
-	@rm -f ${DESTDIR}${PREFIX}/bin/$(TARGET)
+strip : $(TARGET)
+	strip -v $<
 
-.PHONY: all options clean dist install uninstall
+.c.o : $(SRC)
+	@echo "[$@]"
+	$(CC) -o $@ $(CFLAGS) -c $<
+
+$(SRC) : $(HDR)
+
+clean: artifacts distclean resclean
+
+distclean :
+	rm -vrf $(TAR) $(TARDIR) $(TAR).gz
+
+resclean :
+	rm -vrf $(OBJ) $(TARGET)
+
+dist : $(TAR).gz
+
+$(TAR).gz : $(TAR)
+	gzip $(TAR)
+
+$(TAR) : $(TARDIR)
+	tar -vcf $(TAR) $(TARDIR)
+
+$(TARDIR) : resclean
+	mkdir -pv $(TARDIR)
+	cp -vR $(wildcard *) $(TARDIR)
+
+install : paths $(TARGET)
+	install $(TARGET) $(DESTDIR)/$(BINPREFIX)/
+	sed "s/VERSION/$(VERSION)/g" <$(TARGET).1>$(DESTDIR)/$(MANPREFIX)/$(MAN1PREFIX)/$(TARGET).1
+
+uninstall :
+	rm -vrf $(DESTDIR)/$(BINPREFIX)/$(TARGET)
+	rm -vrf $(DESTDIR)/$(MANPREFIX)/$(MAN1PREFIX)/$(TARGET).1
