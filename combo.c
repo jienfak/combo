@@ -46,9 +46,9 @@ typedef unsigned short us;
 
 /* Options. */
 struct Options {
-	char *maxwordsamount;
-	char *nwords;
-	char *maxreps;
+	ul maxwordsamount;
+	ul nwords;
+	ul maxreps;
 	char *seps;
 	char *out;
 	char *in;
@@ -63,14 +63,18 @@ static ul      strchop(char *s, char c);
 static char   *strrev(char *dst, char *str);
 /* String lists. */
 static ul      strsrev(char *dst[], char *src[], const ul la);
-/* Lightweight math. */
+static ul      strslen(char **strs);
+static char   *strsnjoin(char *dst, char *strs[], ul n);
+/* Lightweight math functions. */
 static ul      power(const ul num, us n);
 /* File functions. */
-static FILE *fopenin(const char *path);
-static FILE *fopenout(const char *path);
-static ul    fgetlines(char *lines[], FILE *file);
+static FILE   *fopenin(const char *path);
+static FILE   *fopenout(const char *path);
+static ul      fgetlines(char *lines[], FILE *file);
 
-static void fprintcombos(char *ws[], ul wa, struct Options *opt, FILE *f);
+/* Combo functions. */
+static ul     *combomask(ul mask[], const ul wa, const ul id);
+static void    fprintcombos(char *ws[], ul wa, struct Options *opt, FILE *f);
 
 void die(const char *errstr, ...){
 	va_list ap;
@@ -81,7 +85,7 @@ void die(const char *errstr, ...){
 }
 
 void usage(const char *argv0){
-	die("usage: %s [-vr+] [-a maxwordsamount] [-i in_file] [-m max_reps] [-n words_number] [-o out_file] [-s seps] [words]\n" , argv0);
+	die("usage: %s [-Vr+] [-a maxwordsamount] [-i in_file] [-m max_reps] [-n words_number] [-o out_file] [-s seps] [words]\n" , argv0);
 }
 
 ul strchop(char *s, char c){
@@ -128,7 +132,6 @@ FILE *fopenin(const char *path){
 	return file;
 }
 
-
 FILE *fopenout(const char *path){
 	/* Returns file to write(without appending) or crashes with errors. */
 	FILE *file;
@@ -155,14 +158,6 @@ ul fgetlines(char *lines[], FILE *f){
 	return la;
 }
 
-ul fcharcount(char c, FILE *f){
-	/* It counts amount of 'c' in file 'f'. */
-	ul i=0;
-	while (!feof(f))
-		if(fgetc(f)==c)++i;
-	return i;
-}
-
 ul strsrev(char *dst[], char *src[], const ul la){
 	/* Copies reversed words from 'src' to 'dst' with 'la' = lines count and returns it. */
 	ul i;
@@ -173,13 +168,7 @@ ul strsrev(char *dst[], char *src[], const ul la){
 	return la;
 }
 
-void fprintcombos(char *ws[], ul wa, struct Options *opt, FILE *out){
-	return;
-	ul c = 0;
-	for(;;){}
-}
-
-ul *strslen(char **strs){
+ul strslen(char **strs){
 	/* Get len of Z-strings array massive. */
 	char **pstrs = strs;
 	while (*pstrs++!=NULL);
@@ -197,7 +186,13 @@ char *strsjoin(char *dst, char *strs[]){
 	return strsnjoin(dst, strs, strslen(strs));
 }
 
-void gencombomaskbyid(ul mask[], char *ws[], ul wa, ul id){
+ul *combomask(ul mask[], const ul wa, const ul id){
+}
+
+void fprintcombos(char *ws[], ul wa, struct Options *opt, FILE *out){
+	return;
+	ul c = 0;
+	for(;;){}
 }
 
 int main(int argc, char *argv[]){
@@ -220,14 +215,14 @@ int main(int argc, char *argv[]){
 			opt.in = EARGF(USAGE);
 			break;
 		case 'm':
-			opt.maxreps = EARGF(USAGE);
+			opt.maxreps = atoi(EARGF(USAGE));
 			break;
 		case 'n':
-			opt.nwords = EARGF(USAGE);
+			opt.nwords = atoi(EARGF(USAGE));
 			break;
 		case 'o':
 			opt.out = EARGF(USAGE);
-		case 'v':
+		case 'V':
 			die("%s " VERSION "\n", argv0);
 			break;
 		case 's':
@@ -242,10 +237,9 @@ int main(int argc, char *argv[]){
 		default:
 			USAGE;
 	} ARGEND;
-	
 	ul wa = argc;
-	char **ws = malloc(sizeof(char *) *
-			(opt.maxwordsamount ? atoi(opt.maxwordsamount) : 1024));
+	char **ws = malloc( sizeof(char *) *
+			(opt.maxwordsamount ? atoi(opt.maxwordsamount) : 1024) ) ;
 	while (argc && argv) {
 		/* Get words from arguments. */
 		ws[wa-(argc--)] = *argv++ ;
@@ -253,15 +247,15 @@ int main(int argc, char *argv[]){
 
 	if (opt.in) {
 		/* If input option is set. */
-		wa += fgetlines(&ws[wa], fopenin(opt.in));
+		wa += fgetlines(&ws[wa], fopenin(opt.in)) ;
 		if (opt.std_in)
-			wa += fgetlines(&ws[wa], stdin);
+			wa += fgetlines(&ws[wa], stdin) ;
 	} else if (!wa || opt.std_in) {
 		/* We have no words or have standard input option then read from it them. */
-		wa += fgetlines(&ws[wa], stdin);
+		wa += fgetlines(&ws[wa], stdin) ;
 	}
 	/* All the words we got from all the inputs counter. */
-	ul wa0 = wa;
+	ul wa0 = wa ;
 
 	if (opt.rev)
 		/* Additional reversed words.
@@ -271,15 +265,15 @@ int main(int argc, char *argv[]){
 		 *  ^--------^
 		 *     ^--------^
 		 *        ^--------^                  */
-		wa += strsrev(&ws[wa0], &ws[0], wa0);
+		wa += strsrev(&ws[wa0], &ws[0], wa0) ;
 
 	FILE *output;
 	if (opt.out)
 		/* Output file. */
-		output = fopenout(opt.out);
+		output = fopenout(opt.out) ;
 	else
 		/* Standard output. */
-		output = stdout;
+		output = stdout ;
 
 
 	for (ul i=0 ; i<wa ; ++i) {
@@ -287,5 +281,5 @@ int main(int argc, char *argv[]){
 	}
 	fprintcombos(ws, wa, &opt, output);
 
-	return 0;
+	return 0 ;
 }
