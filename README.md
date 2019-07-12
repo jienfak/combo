@@ -1,8 +1,8 @@
 
-combo - simple program generating all combinations of words you specified.
+combo is a simple program generating all combinations of words you specified.
 For example:
 ```sh
-> combo  -n 2 -m password 123 login root
+> combo  -n 2 -m 0 password 123 login root
 password
 123
 login
@@ -19,21 +19,6 @@ rootlogin
 passwordroot
 123root
 loginroot
-```
----
-Installing:
-```sh
-git clone https://github.com/jienfak/combo
-cd combo
-make all
-make clean
-make install
-```
----
-Uninstalling:
-```sh
-cd combo
-make uninstall
 ```
 ---
 To get help read 'man combo'.

@@ -1,38 +1,42 @@
 # Includable for c1-like makefiles.
 VERSION = 0.1
-# Resources.
-TARGET  = combo
-SRC     = $(wildcard *.c) $(ASRC)
-HDR     = $(wildcard *.h) $(AHDR)
+# Artifacts.
+TGT     = combo
+SRC     = $(wildcard *.c) $(ADDSRC)
+HDR     = $(wildcard *.h) $(ADDHDR)
+ADDSRC  =
+ADDHDR  =
 OBJ     = $(SRC:.c=.o)
-TARDIR  = $(TARGET)-$(VERSION)
-TAR     = $(TARDIR).tar
+# Tarball.
+TARDIR  = $(TGT)-$(VERSION)
+TARARC  = $(TARDIR).tar
+TAREXT  = gz
+TAROUT  = $(TARARC).$(TAREXT)
+
+# Manual.
+MANSECT = 1
+MANUAL  = $(TGT).$(MANSECT)
 # Directories.
-ROOTDIR   = 
-DIRPREFIX = usr/local
-MANPREFIX = share/man
-MAN1PREFIX= man1
-BINPREFIX = bin
-DESTDIR = $(ROOTDIR)/$(DIRPREFIX)
-# Program name.
-# Additional sources.
-ASRC =
-# Additional headers.
-AHDR =
+ROOTDIR       = 
+DIRPREFIX     = usr/local
+MANPREFIX     = share/man
+MANSECTPREFIX = man$(MANSECT)
+BINPREFIX     = bin
+DESTDIR       = $(ROOTDIR)/$(DIRPREFIX)
 # Includes.
-INC =
+INCFLAGS =
 # Dynamic/static libraries.
-LIB =
+LIBFLAGS =
 # Defines to get from C-preprocessor.
-DEFINE   = -DVERSION=\"$(VERSION)\"
+DEFFLAGS = -DVERSION=\"$(VERSION)\"
 # Warnings.
-WARN     =
+WRNFLAGS =
 # Optimiziation flags.
-OPTF     = -O3
+OPTFLAGS = -O3
 # Compilation Flags.
-DBGFLAGS = $(INC) -O0     -Wall   $(DEFINE) -g
-CFLAGS   = $(INC) $(OPTF) $(WARN) $(DEFINE)
-LDFLAGS  = $(LIBS)
+DBGFLAGS = -g $(INCFLAGS) -O0         -Wall       $(DEFFLAGS)
+CFLAGS   =    $(INCFLAGS) $(OPTFLAGS) $(WRNFLAGS) $(DEFFLAGS)
+LDFLAGS  = $(LIBFLAGS)
 
 # Compiler and linker.
 CC = tcc

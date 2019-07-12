@@ -46,9 +46,9 @@ typedef unsigned short us;
 
 /* Options. */
 struct Options {
-	ul maxwordsamount;
-	ul nwords;
-	ul maxreps;
+	char *maxwordsamount;
+	char *nwords;
+	char *maxreps;
 	char *seps;
 	char *out;
 	char *in;
@@ -215,10 +215,10 @@ int main(int argc, char *argv[]){
 			opt.in = EARGF(USAGE);
 			break;
 		case 'm':
-			opt.maxreps = atoi(EARGF(USAGE));
+			opt.maxreps = EARGF(USAGE);
 			break;
 		case 'n':
-			opt.nwords = atoi(EARGF(USAGE));
+			opt.nwords = EARGF(USAGE);
 			break;
 		case 'o':
 			opt.out = EARGF(USAGE);

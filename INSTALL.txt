@@ -1,0 +1,2 @@
+             ### Combo installation ###
+To install just run './mk install' script with enough permissions.
