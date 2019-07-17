@@ -3,6 +3,8 @@
 #include <string.h>
 #include <inttypes.h>
 
+#define PBUFSIZ 64
+
 #define USAGE (usage(argv0))
 /* suckless 'arg.h' */
 #define ARGBEGIN	for (argv0 = *argv, argv++, argc--;\
@@ -45,15 +47,9 @@ typedef unsigned long ul;
 typedef unsigned short us;
 
 /* Options. */
-struct Options {
-	char *maxwordsamount;
-	char *nwords;
-	char *maxreps;
-	char *seps;
-	char *out;
-	char *in;
-	us std_in;
-	us rev;
+struct Opts {
+	char  *oargs[256];
+	char **vargs;
 };
 /* Common. */
 static void    die(const char *errstr, ...);
@@ -64,7 +60,8 @@ static char   *strrev(char *dst, char *str);
 /* String lists. */
 static ul      strsrev(char *dst[], char *src[], const ul la);
 static ul      strslen(char **strs);
-static char   *strsnjoin(char *dst, char *strs[], ul n);
+static char   *strsncat(char *dst, char *strs[], ul n);
+static char   *strscat(char *dst, char *strs[]);
 /* Lightweight math functions. */
 static ul      power(const ul num, us n);
 /* File functions. */
@@ -88,7 +85,7 @@ void usage(const char *argv0){
 	die("usage: %s [-Vr+] [-a maxwordsamount] [-i in_file] [-m max_reps] [-n words_number] [-o out_file] [-s seps] [words]\n" , argv0);
 }
 
-ul strchop(char *s, char c){
+ul strchp(char *s, char c){
 	/* It deletes one the last 'c' character if it has and returns new length. */
 	ul l = strlen(s);
 	if (s[l-1]==c) --l;
@@ -175,13 +172,13 @@ ul strslen(char **strs){
 	return pstrs-strs-1;
 }
 
-char *strsnjoin(char *dst, char *strs[], ul n){
+char *strsncat(char *dst, char *strs[], ul n){
 	/* Joins lines from 'strs' array with size 'n' to 'dst'.*/
 	for (ul i=0; i<n ; ++i) strcat(dst, strs[i]);
 	return dst;
 }
 
-char *strsjoin(char *dst, char *strs[]){
+char *strscat(char *dst, char *strs[]){
 	/* Joins lines from 'strs' array ending with NULL-pointer. */
 	return strsnjoin(dst, strs, strslen(strs));
 }
@@ -195,6 +192,26 @@ void fprintcombos(char *ws[], ul wa, struct Options *opt, FILE *out){
 	for(;;){}
 }
 
+struct Opts *crtopts(int argc, char *argv[]){
+	struct Opts opts = malloc(sizeof(struct Opts)) ;
+	int str_cnt = argc ;
+	for( int i=0 ; i<argc ; ++i ){
+		if( argv[i][0]=='-' ){
+			opts.oargs[argv[[i][1]] = argv[i]+2 ;
+			--str_cnt;
+		}
+	}
+	opts.vargs = malloc(sizeof(char *) * str_cnt) ;
+	for( int i1=0, i2=0; i1<argc ; ++i1 )
+		if( argv[i1][0]!='-'){
+			if(argv[i1][0]=='\\') opts.vargs[i2] = argv[i1]+1 ;
+			else opts.vargs[i2] = argv[i1] ;
+			++i2;
+		}
+		
+	return opts ;
+}
+
 int main(int argc, char *argv[]){
 	struct Options opt = {
 		.maxwordsamount = NULL,
@@ -206,6 +223,7 @@ int main(int argc, char *argv[]){
 		.rev            = 0,
 		.std_in         = 0
 	};
+	struct Opts *opt = crtopts(argc-1, argv+1) ;
 	char *argv0;
 	ARGBEGIN {
 		case 'a':

@@ -1,2 +1,2 @@
              ### Combo installation ###
-To install just run './mk install' script with enough permissions.
+To install just run 'make install' script with enough permissions.
