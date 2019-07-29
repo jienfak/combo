@@ -10,7 +10,7 @@ CLEAN     = clean_dist clean_artifacts
 
 all : show_options strip
 
-dbg : set_dbgflags show_info $(TGT)
+dbg : set_dbgflags show_info $(CLEAN) $(TGT)
 	$(LD) -o $(TGT) $(LDFLAGS) $(OBJ)
 
 set_dbgflags :

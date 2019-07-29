@@ -3,111 +3,198 @@
 #include <string.h>
 #include <inttypes.h>
 
-#define PBUFSIZ 64
+#define PBUFSIZ    (64)
+#define ASCII_BIAS (' ')
+#define MAX_VARGS  (128)
+#define SIZEL(e)   (sizeof(e[0]))
 
-#define USAGE (usage(argv0))
-/* suckless 'arg.h' */
-#define ARGBEGIN	for (argv0 = *argv, argv++, argc--;\
-					argv[0] && argv[0][0] == '-'\
-					&& argv[0][1];\
-					--argc, ++argv) {\
-				char argc_;\
-				char **argv_;\
-				int brk_;\
-				if (argv[0][1] == '-' && argv[0][2] == '\0') {\
-					++argv;\
-					--argc;\
-					break;\
-				}\
-				for (brk_ = 0, argv[0]++, argv_ = argv;\
-						argv[0][0] && !brk_;\
-						argv[0]++) {\
-					if (argv_ != argv)\
-						break;\
-					argc_ = argv[0][0];\
-					switch (argc_)
-#define ARGEND			}\
-			}
-
-#define ARGC()		argc_
-
-#define EARGF(x)	((argv[0][1] == '\0' && argv[1] == NULL)?\
-				((x), abort(), (char *)0) :\
-				(brk_ = 1, (argv[0][1] != '\0')?\
-					(&argv[0][1]) :\
-					(argc--, argv++, argv[0])))
-
-#define ARGF()		((argv[0][1] == '\0' && argv[1] == NULL)?\
-				(char *)0 :\
-				(brk_ = 1, (argv[0][1] != '\0')?\
-					(&argv[0][1]) :\
-					(argc--, argv++, argv[0])))
-
-typedef unsigned long ul;
+typedef unsigned long  ul;
 typedef unsigned short us;
+typedef char *         str;
+typedef unsigned char  chr;
+
 
 /* Options. */
-struct Opts {
-	char  *oargs[256];
-	char **vargs;
+struct CatOpts {
+	chr oargs[96];
+	str *vargs;
 };
+
+
+/* It's a backend of linked list to save any data.*/
+struct LinkedList {
+	/* Easiest linked list structure. */
+	void *pdat;
+	struct LinkedList *nxt;
+	us typ;
+} ;
+
 /* Common. */
-static void    die(const char *errstr, ...);
-static void    usage(const char *argv0);
+static void    die(const str errstr, ...);
+static void    usage(const str argv0);
 /* Strings. */
-static ul      strchop(char *s, char c);
-static char   *strrev(char *dst, char *str);
+static ul      strchmp(str s, chr c);
+static str   strrev(str dst, str str);
 /* String lists. */
-static ul      strsrev(char *dst[], char *src[], const ul la);
-static ul      strslen(char **strs);
-static char   *strsncat(char *dst, char *strs[], ul n);
-static char   *strscat(char *dst, char *strs[]);
+static str     *ssncat(str dst[], str src[], ul n);
+static str     *sscat(str dst[], str src[]);
 /* Lightweight math functions. */
-static ul      power(const ul num, us n);
+static ul      power(ul num, us n);
 /* File functions. */
-static FILE   *fopenin(const char *path);
-static FILE   *fopenout(const char *path);
-static ul      fgetlines(char *lines[], FILE *file);
+static FILE   *fopenin(const str path);
+static FILE   *fopenout(const str path);
+static str    *fgetlines(FILE *file);
 
 /* Combo functions. */
 static ul     *combomask(ul mask[], const ul wa, const ul id);
-static void    fprintcombos(char *ws[], ul wa, struct Options *opt, FILE *f);
-
-void die(const char *errstr, ...){
+static void    fprintcombos(str *ws[], ul wa, struct Options *opt, FILE *f);
+/*
+void die(const str *errstr, ...){
 	va_list ap;
 	va_start(ap, errstr);
 	vfprintf(stderr, errstr, ap);
 	va_end(ap);
 	exit(1);
 }
+*/
 
-void usage(const char *argv0){
-	die("usage: %s [-Vr+] [-a maxwordsamount] [-i in_file] [-m max_reps] [-n words_number] [-o out_file] [-s seps] [words]\n" , argv0);
+/*
+void usage(const str *argv0){
+	die("usage: %s [-Vr+] [-lin_file] [-mmax_reps] [-nwords_number] [-oout_file] [-s seps] [words]\n" , argv0);
+}
+*/
+
+
+struct LinkedList *ll_crt(void){
+	/* This function creates first element of list. */
+	/* First element does not contain anything */
+	/* Memory for first element of list. */
+	struct LinkedList *ll = malloc( sizeof(struct LinkedList) ) ;
+	/* Initialisation values. */
+	ll->pdat = NULL ;
+	ll->nxt  = NULL ;
+	/* This type means "Start of list.". */
+	ll->typ = 0 ;
+	return ll ;
 }
 
-ul strchp(char *s, char c){
-	/* It deletes one the last 'c' character if it has and returns new length. */
-	ul l = strlen(s);
-	if (s[l-1]==c) --l;
+ul ll_siz( struct LinkedList *lst){
+	/* Function returns size of list(Logically). */
+	struct LinkedList *cur = lst ;
+	ul cnt = 0 ;
+	while(cur->nxt){
+		++cnt;
+		cur = cur->nxt ;
+	}
+	return cnt ;
+}
+
+void ll_add(struct LinkedList *ll0, void *pdat){
+	struct LinkedList *cur = ll0 ;
+	/* Find last pointer */
+	while( cur->nxt ){
+		cur = cur->nxt ;
+	}
+	/* Get memory for the next element and get it after. */
+	cur->nxt = malloc( sizeof(struct LinkedList) ) ;
+	cur->nxt->nxt = NULL ;
+	/* Initialisation. */
+	cur->nxt->pdat = pdat ;
+}
+
+void *ll_at(struct LinkedList *ll0, ul idx){
+	/* This function returns a pointer to the data it saved.*/
+	struct LinkedList *cur = ll0 ;
+	/* Find element by an index. */
+	for( ul i=0 ; i<idx+1 ; ++i ){
+		cur = cur->nxt ;
+	}
+	return cur->pdat ;
+}
+
+us ll_ins(struct LinkedList *ll0, ul idx, void *pdat){
+	/* This function inserts an element into a list and returns '0' if it's succesful. */
+	struct LinkedList *cur = ll0 ;
+	struct LinkedList *end;
+	if( ll_siz(ll0)<idx ){
+		/* Too big index. */
+		return 1 ;
+	}
+	for( ul i=0 ; i<idx ; ++i ){
+		cur = cur->nxt ;
+	}
+	/* To save element which will go after inserted. */
+	end = cur->nxt ;
+	/* Initialisation of next element. */
+	cur->nxt        = ll_crt();
+	cur->nxt->nxt  = end ;
+	cur->nxt->pdat = pdat ;
+	/* Succesful inserted. */
+	return 0 ;
+}
+
+us ll_rm(struct LinkedList *ll0, ul idx){
+	struct LinkedList *cur = ll0 ;
+	struct LinkedList *end;
+	if( ll_siz(ll0)<=idx ){
+		/* Too big index. */
+		return 1 ;
+	}
+	for( ul i=0 ; i<idx ; ++i ){
+		cur = cur->nxt ;
+	}	
+	/* Removing. */
+	free(cur->nxt);
+	cur->nxt = cur->nxt->nxt ;
+	/* Succesful removed. */
+	return 0 ;
+}
+
+void ll_free(struct LinkedList *ll){
+	/* Frees alocated for structure memory. */
+	if(ll->nxt==NULL) free(ll) ;
+	else ll_free(ll->nxt), ll_free(ll) ;
+}
+
+str *ll2ss(struct LinkedList *ll){
+	/* Converts linked list of Z-strings to array with NULL-pointer at end. */
+	ul siz = ll_siz(ll) ;
+	str *ss = malloc(SIZEL(str) * (siz+1)) ;
+	for( int i=0 ; i<siz ; ++i ){
+		ss[i] = ll_at(ll, i) ;
+	}
+	ss[siz] = NULL ;
+	return ss ;
+}
+
+chr strchp(str s){
+	/* Chops the last char and returns it. */
+	ul l = strlen(s) ;
+	chr c = s[l -= 1] ;
+	s[l] = '\0' ;
+	return c ;
+}
+
+ul strchmp(str s, chr c){
+	/* Deletes one the last 'c' str acter if it has and returns new length. */
+	ul l = strlen(s) ;
+	if (s[l-1]==c) --l ;
 	s[l] = '\0';
 	return l;
 }
 
-char *strrev(char *dst, char *src){
-	/* Copy reversed string from the source into the destination. */
-	char *pbuf = malloc( sizeof(char) * strlen(src) );
-	char *pbuf0 = pbuf;
+str strrev(str dst, str src){
+	/* Copy reversed string from the source into the destination(destination can be source). */
+	str pbuf = malloc( SIZEL(str) * strlen(src) ) ;
+	str pbuf0 = pbuf ;
 	ul len = 0;
-
-	while(*src) ++src, ++len;
-
-	/* To escape zero end character. */
+	while(*src) ++src, ++len ;
+	/* To escape zero end str acter. */
 	--src;
-	for(; len ; --len){
-		*pbuf++ = *src--;
+	for(; len ; --len ){
+		*pbuf++ = *src-- ;
 	}
-	*pbuf = '\0';
-
+	*pbuf = '\0' ;
 	strcpy(dst, pbuf0);
 	free(pbuf0);
 	return dst;
@@ -119,185 +206,223 @@ ul power(const ul num, us n){
 	return buf;
 }
 
-FILE *fopenin(const char *path){
+ul ulmin(ul a, ul b){
+	return a<b ? a : b ;
+}
+
+ul ulmax(ul a, ul b){
+	return a>b ? a : b ;
+}
+
+void fseek0(FILE *f){
+	fseek(f, 0, SEEK_SET);
+}
+
+ul fchrcnt(const chr c, FILE *f){
+	long pos = ftell(f) ;
+	ul cnt = 0 ;
+	chr rc;
+	while( (rc=fgetc(f)) !=  EOF )
+		if(rc==c) ++cnt ;
+	fseek0(f);
+	return cnt ;
+}
+
+FILE *fopenin(const str p){
 	/* Returns file to read or crashes with errors. */
-	FILE *file;
-	if(!(file=fopen(path, "r"))){
+	FILE *f;
+	if(!(f=fopen(p, "r"))){
 		perror("fopen");
 		exit(1);
 	}
-	return file;
+	return f ;
 }
 
-FILE *fopenout(const char *path){
+FILE *fopenout(const str p){
 	/* Returns file to write(without appending) or crashes with errors. */
-	FILE *file;
-	if (!(file=fopen(path, "w"))) {
+	FILE *f;
+	if (!(f=fopen(p, "w"))) {
 		perror("fopen");
 		exit(1);
 	}
-	return file;
+	return f ;
 }
 
-ul fgetlines(char *lines[], FILE *f){
-	/* Gets lines from file and return amount of them. */
-	ul la=0;
-	ul buflen;
-	char buf[BUFSIZ];
-	while ( fgets(buf, sizeof(buf), f)) {
-		/* Reading, memory allocation and copying from buffer. */
-		buflen = strchop(buf, '\r');
-		buflen = strchop(buf, '\n');
-		lines[la] = malloc(sizeof(char) * buflen);
-		strcpy(lines[la], buf);
-		++la;
+str *fgetlines(FILE *f){
+	/* Gets lines from file and returns allocated in memory array(by malloc, so it can be freed). */
+	struct LinkedList *ll = ll_crt() ;
+	chr buf[BUFSIZ];
+	while(fgets(buf, sizeof(buf), f)){
+		/* Reading, memory allocation and copying from buffer to dump and adding linked list. */
+		ul buflen = strchmp(buf, '\r') ;
+		buflen = strchmp(buf, '\n') ;
+		str ptr = malloc(SIZEL(ptr)*(buflen+1));
+		strcpy(ptr, buf);
+		ll_add(ll, ptr);
 	}
-	return la;
+	str **ss = ll2ss(ll) ;
+	ll_free(ll);
+	return ss ;
 }
 
-ul strsrev(char *dst[], char *src[], const ul la){
-	/* Copies reversed words from 'src' to 'dst' with 'la' = lines count and returns it. */
-	ul i;
-	for (i=0;  i<la; ++i) {
-		dst[i] = malloc( sizeof(char)*strlen(src[i]) );
+void *arrncpy(void *dst, void *src, size_t siz, ul n){
+	/* Copies array with length=n and size of element = siz. */
+	return memcpy(dst, src, siz*n) ;
+}
+
+ul ssnrev_for(str dst[], str src[], const ul n){
+	/* Copies reversed words from 'src' to 'dst' with 'n' = lines count and returns it. */
+	for( ul i=0 ;  i<n ; ++i ){
+		dst[i] = malloc( SIZEL(dst)*strlen(src[i]) ) ;
 		strrev(dst[i], src[i]);
 	}
-	return la;
+	return n ;
 }
 
-ul strslen(char **strs){
-	/* Get len of Z-strings array massive. */
-	char **pstrs = strs;
-	while (*pstrs++!=NULL);
-	return pstrs-strs-1;
+ul voidlen(void **a){
+	void **pa=a ; while(*a++) ; return pa-a-1 ;
 }
 
-char *strsncat(char *dst, char *strs[], ul n){
-	/* Joins lines from 'strs' array with size 'n' to 'dst'.*/
-	for (ul i=0; i<n ; ++i) strcat(dst, strs[i]);
-	return dst;
+ul sslen(str ss[]){
+	/* Gets length of Z-strings array. */
+	str *pss = ss ; while (*pss) ++pss ; return pss-ss ;
 }
 
-char *strscat(char *dst, char *strs[]){
-	/* Joins lines from 'strs' array ending with NULL-pointer. */
-	return strsnjoin(dst, strs, strslen(strs));
+ul ssrev_for(str dst[], str src[]){
+	/* Copies reversed words from 'src' to 'dst' until NULL-pointer meet. */
+	return ssnrev_for(dst, src, sslen(src)) ;
 }
 
-ul *combomask(ul mask[], const ul wa, const ul id){
+
+str ssncat2str(str s, str ss[], ul n){
+	/* Joins lines from 'ss' array with length 'n' to 'str'.*/
+	for( ul i=0 ; i<n ; ++i ) strcat(s, ss[i]) ; return s ;
 }
 
-void fprintcombos(char *ws[], ul wa, struct Options *opt, FILE *out){
+str sscat2str(str s, str ss[]){
+	/* Joins lines from 'ss' array with length 'sslen' to 'str'. */
+	return ssncat2str(s, ss, sslen(ss)) ;
+}
+
+str *ssncpy(str dst[], str src[], ul n){
+	/* Copies Z-strings array from 'src' to 'dst- with length equal 'n'. */
+	/*for( ul i=0 ; i<n ; ++i )
+		dst[i] = src[i] ; */
+	arrncpy(dst, src, n, SIZEL(src));
+	return dst ;
+}
+
+str *sscpy(str dst[], str src[]){
+	/* Copies Z-strings array from 'src' do 'dst' with length equal 'sslen'. */
+	return ssncpy(dst, src, sslen(src)+1);
+}
+
+str *sscat(str dst[], str src[]){
+	/* Concatenates Z-strings array . */
+	return sscpy(dst+sslen(dst), src) ;
+}
+
+str *sscatarrn(str dst[], str *src[], ul n){
+	/* Concatenates array of arrays(fuck) with 'n' length. */
+	for( ul i=0 ; i<n ; ++i ) sscat(dst, src[i]) ; return dst ;
+}
+
+str *sscatarr(str dst[], str **src){
+	/* Concatenates array of arrays while don't meet NULL-pointer. */
+	while (*src) sscat(dst, *(src++)) ; return dst ;
+}
+
+
+ul *combo_makmsk(ul mask[], const ul wa, const ul id){
+	return 0 ;
+}
+
+void combo_fputcmbs(str ws[], ul wa, struct Options *opt, FILE *out){
 	return;
 	ul c = 0;
 	for(;;){}
 }
 
-struct Opts *crtopts(int argc, char *argv[]){
-	struct Opts opts = malloc(sizeof(struct Opts)) ;
-	int str_cnt = argc ;
+
+struct CatOpts *co_crtopts(ul argc, str argv[]){
+	struct CatOpts *opts = malloc(sizeof(struct CatOpts)) ;
+	for( int i=0 ; i<96 ; ++i )
+		opts->oargs[i] = NULL ;
+
+	unsigned int str_cnt = argc ;
 	for( int i=0 ; i<argc ; ++i ){
 		if( argv[i][0]=='-' ){
-			opts.oargs[argv[[i][1]] = argv[i]+2 ;
+			opts->oargs[argv[i][1]-ASCII_BIAS] = argv[i]+2 ;
 			--str_cnt;
 		}
 	}
-	opts.vargs = malloc(sizeof(char *) * str_cnt) ;
+	opts->vargs = malloc(SIZEL(opts->vargs[0]) * (size_t)str_cnt) ;
 	for( int i1=0, i2=0; i1<argc ; ++i1 )
 		if( argv[i1][0]!='-'){
-			if(argv[i1][0]=='\\') opts.vargs[i2] = argv[i1]+1 ;
-			else opts.vargs[i2] = argv[i1] ;
+			if(argv[i1][0]=='\\') opts->vargs[i2] = argv[i1]+1 ;
+			else opts->vargs[i2] = argv[i1] ;
 			++i2;
 		}
-		
+	opts->vargs[str_cnt] = NULL ;
 	return opts ;
 }
 
-int main(int argc, char *argv[]){
-	struct Options opt = {
-		.maxwordsamount = NULL,
-		.in             = NULL,
-		.maxreps        = NULL,
-		.nwords         = NULL,
-		.out            = NULL,
-		.seps           = NULL,
-		.rev            = 0,
-		.std_in         = 0
-	};
-	struct Opts *opt = crtopts(argc-1, argv+1) ;
-	char *argv0;
-	ARGBEGIN {
-		case 'a':
-			opt.maxwordsamount = EARGF(USAGE);
-			break;
-		case 'i':
-			opt.in = EARGF(USAGE);
-			break;
-		case 'm':
-			opt.maxreps = EARGF(USAGE);
-			break;
-		case 'n':
-			opt.nwords = EARGF(USAGE);
-			break;
-		case 'o':
-			opt.out = EARGF(USAGE);
-		case 'V':
-			die("%s " VERSION "\n", argv0);
-			break;
-		case 's':
-			opt.seps = EARGF(USAGE);
-			break;
-		case 'r':
-			opt.rev = 1;
-			break;
-		case '+':
-			opt.std_in = 1;
-			break;
-		default:
-			USAGE;
-	} ARGEND;
-	ul wa = argc;
-	char **ws = malloc( sizeof(char *) *
-			(opt.maxwordsamount ? atoi(opt.maxwordsamount) : 1024) ) ;
-	while (argc && argv) {
-		/* Get words from arguments. */
-		ws[wa-(argc--)] = *argv++ ;
-	}
+str co_oarg(struct CatOpts *opts, chr c){
+	return opts->oargs[c-ASCII_BIAS] ;
+}
 
-	if (opt.in) {
-		/* If input option is set. */
-		wa += fgetlines(&ws[wa], fopenin(opt.in)) ;
-		if (opt.std_in)
-			wa += fgetlines(&ws[wa], stdin) ;
-	} else if (!wa || opt.std_in) {
-		/* We have no words or have standard input option then read from it them. */
-		wa += fgetlines(&ws[wa], stdin) ;
-	}
-	/* All the words we got from all the inputs counter. */
-	ul wa0 = wa ;
+str co_varg(struct CatOpts *opts, int i){
+	return opts->vargs[i] ;
+}
 
-	if (opt.rev)
-		/* Additional reversed words.
-		 * They are placed with offset='wa0'.
-		 * [1][2][3][4][5][6]
-		 *     bias
-		 *  ^--------^
-		 *     ^--------^
-		 *        ^--------^                  */
-		wa += strsrev(&ws[wa0], &ws[0], wa0) ;
+str *co_vargarr(struct CatOpts *opts){
+	return opts->vargs ;
+}
+int co_vargamt(struct CatOpts *opts){
+	return sslen(opts->vargs) ;
+}
 
-	FILE *output;
-	if (opt.out)
-		/* Output file. */
-		output = fopenout(opt.out) ;
-	else
-		/* Standard output. */
-		output = stdout ;
-
-
-	for (ul i=0 ; i<wa ; ++i) {
+int combo_run(int argc, str argv[]){
+	/* No run if not enough arguments. */
+	if (argc==1) return 1 ;
+	/* Argument parser. */
+	struct CatOpts *opts = co_crtopts(argc-1, argv+1) ;
+	/* Output file. */
+	str pfo = co_oarg(opts, 'o') ;
+	FILE *o   = pfo ? fopenout(pfo) : stdout ;
+	/* Memory multiplier for additional word variants. */
+	ul addmemx = 0 ;
+	/* Reversed words take memory too, so increment 'addmemx'. */
+	co_oarg(opts, 'r') && ++addmemx ;
+	/* General multiplier. */
+	ul memx = 1+addmemx ;
+	/* Read words from list. */
+	str *fbufws = malloc(SIZEL(fbufws)) ;
+	*fbufws = NULL ;
+	str pfl = co_oarg(opts, 'l') ;
+	*fbufws = NULL ;
+	if (pfl)
+		fbufws = printf("%s\n", pfl), fgetlines(  fopenin( co_oarg(opts, 'l') )  ) ;
+	/* Read words from standard input. */
+	str *stdbufws = malloc(SIZEL(stdbufws)) ;
+	*stdbufws = NULL ;
+	if (co_oarg(opts, '-'))
+		stdbufws = fgetlines( stdin ) ;
+	/* Words amount(without additional words, like reversed or something). */
+	ul wa0 = sslen(fbufws)+sslen(stdbufws)+co_vargamt(opts) ;
+	/* All the words. */
+	ul wa  = wa0*memx ;
+	/* Getting words from all the inputs into one array. */
+	str *ws      = malloc(sizeof(str)*wa) ;
+	str *wsarr[] = { co_vargarr(opts), fbufws, stdbufws, NULL } ;
+	sscatarr(ws, wsarr);
+	for( ul i=0 ; i<wa ; ++i ){
 		printf("%s\n", ws[i]);
 	}
-	fprintcombos(ws, wa, &opt, output);
-
 	return 0 ;
+}
+
+int main(int argc, chr *argv[]){
+	/* Wrapper to make possible embeded combo into another programs. */
+	return combo_run(argc, argv) ;
 }

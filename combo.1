@@ -9,33 +9,31 @@ combo \- words combo generator.
 
 .SH OPTIONS
 .TP
-.BI \-a " maxwordsamount"
+.BI \-a "maxwordsamount"
 set words maximum to allocate memory for them.
 .TP
-.BI \-i " in_file"
-get words from in_file either.
+.BI \-l "list"
+get words from 'list' either.
 .TP
-.BI \-m " m"
+.BI \-m "m"
 print only m-word repeated combinations.
 .TP
-.BI \-n " n"
+.BI \-n "n"
 print only n-word length combinations.
 .TP
-.BI \-o " out_file"
+.BI \-o "out_file"
 write output to the file.
 .TP
 .BI \-V
 prints version information to standard output, then exits.
 .TP
-.BI \-s " seps"
+.BI \-s "seps"
 add combinations where 'seps' characters are used to separate words in combinations.
 .TP
 .BI \-r
 add reversed words to the list.
 .TP
-.BI \-+
+.BI \--
 get words from stdin either.
 
 .SH SEE ALSO
-.BR dmenu (1),
-.BR st (1)

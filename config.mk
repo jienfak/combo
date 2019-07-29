@@ -34,7 +34,7 @@ WRNFLAGS =
 # Optimiziation flags.
 OPTFLAGS = -O3
 # Compilation Flags.
-DBGFLAGS = -g $(INCFLAGS) -O0         -Wall       $(DEFFLAGS)
+DBGFLAGS = -g $(INCFLAGS) -O0         -Wall       $(DEFFLAGS) -DDBG
 CFLAGS   =    $(INCFLAGS) $(OPTFLAGS) $(WRNFLAGS) $(DEFFLAGS)
 LDFLAGS  = $(LIBFLAGS)
 
