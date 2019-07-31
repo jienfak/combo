@@ -16,7 +16,7 @@ typedef unsigned char  chr;
 
 /* Options. */
 struct CatOpts {
-	chr oargs[96];
+	str oargs[96];
 	str *vargs;
 };
 
@@ -78,7 +78,7 @@ struct LinkedList *ll_crt(void){
 	return ll ;
 }
 
-ul ll_siz( struct LinkedList *lst){
+ul ll_len( struct LinkedList *lst){
 	/* Function returns size of list(Logically). */
 	struct LinkedList *cur = lst ;
 	ul cnt = 0 ;
@@ -92,9 +92,7 @@ ul ll_siz( struct LinkedList *lst){
 void ll_add(struct LinkedList *ll0, void *pdat){
 	struct LinkedList *cur = ll0 ;
 	/* Find last pointer */
-	while( cur->nxt ){
-		cur = cur->nxt ;
-	}
+	while( cur->nxt ) cur = cur->nxt ;
 	/* Get memory for the next element and get it after. */
 	cur->nxt = malloc( sizeof(struct LinkedList) ) ;
 	cur->nxt->nxt = NULL ;
@@ -116,7 +114,7 @@ us ll_ins(struct LinkedList *ll0, ul idx, void *pdat){
 	/* This function inserts an element into a list and returns '0' if it's succesful. */
 	struct LinkedList *cur = ll0 ;
 	struct LinkedList *end;
-	if( ll_siz(ll0)<idx ){
+	if( ll_len(ll0)<idx ){
 		/* Too big index. */
 		return 1 ;
 	}
@@ -136,7 +134,7 @@ us ll_ins(struct LinkedList *ll0, ul idx, void *pdat){
 us ll_rm(struct LinkedList *ll0, ul idx){
 	struct LinkedList *cur = ll0 ;
 	struct LinkedList *end;
-	if( ll_siz(ll0)<=idx ){
+	if( ll_len(ll0)<=idx ){
 		/* Too big index. */
 		return 1 ;
 	}
@@ -152,18 +150,19 @@ us ll_rm(struct LinkedList *ll0, ul idx){
 
 void ll_free(struct LinkedList *ll){
 	/* Frees alocated for structure memory. */
+	puts("ll_free");
 	if(ll->nxt==NULL) free(ll) ;
-	else ll_free(ll->nxt), ll_free(ll) ;
+	else ll_free(ll->nxt), ll->nxt = NULL, ll_free(ll) ;
 }
 
 str *ll2ss(struct LinkedList *ll){
 	/* Converts linked list of Z-strings to array with NULL-pointer at end. */
-	ul siz = ll_siz(ll) ;
-	str *ss = malloc(SIZEL(str) * (siz+1)) ;
-	for( int i=0 ; i<siz ; ++i ){
+	ul len = ll_len(ll) ;
+	printf("ll_len = %d\n", len);
+	str *ss = malloc(SIZEL(ss) * (len+1)) ;
+	for( int i=0 ; i<len ; ++i )
 		ss[i] = ll_at(ll, i) ;
-	}
-	ss[siz] = NULL ;
+	ss[len] = NULL ;
 	return ss ;
 }
 
@@ -256,11 +255,12 @@ str *fgetlines(FILE *f){
 		/* Reading, memory allocation and copying from buffer to dump and adding linked list. */
 		ul buflen = strchmp(buf, '\r') ;
 		buflen = strchmp(buf, '\n') ;
+		printf("buflen = '%d'\n", buflen);
 		str ptr = malloc(SIZEL(ptr)*(buflen+1));
 		strcpy(ptr, buf);
 		ll_add(ll, ptr);
 	}
-	str **ss = ll2ss(ll) ;
+	str *ss = ll2ss(ll) ;
 	ll_free(ll);
 	return ss ;
 }
@@ -279,13 +279,15 @@ ul ssnrev_for(str dst[], str src[], const ul n){
 	return n ;
 }
 
-ul voidlen(void **a){
-	void **pa=a ; while(*a++) ; return pa-a-1 ;
+ul parrlen(void *a[]){
+	/* Returns amount of pointers in array just before NULL. */
+	void **pa=a ; while(*pa) ++pa ; return pa-a ;
 }
 
 ul sslen(str ss[]){
 	/* Gets length of Z-strings array. */
-	str *pss = ss ; while (*pss) ++pss ; return pss-ss ;
+	/*str *pss = ss ; while (*pss) ++pss ; return pss-ss ;*/
+	return parrlen(ss) ;
 }
 
 ul ssrev_for(str dst[], str src[]){
@@ -343,21 +345,20 @@ void combo_fputcmbs(str ws[], ul wa, struct Options *opt, FILE *out){
 	for(;;){}
 }
 
-
 struct CatOpts *co_crtopts(ul argc, str argv[]){
 	struct CatOpts *opts = malloc(sizeof(struct CatOpts)) ;
 	for( int i=0 ; i<96 ; ++i )
 		opts->oargs[i] = NULL ;
-
 	unsigned int str_cnt = argc ;
-	for( int i=0 ; i<argc ; ++i ){
+	for( int i=0 ; i<argc ; ++i )
+		/* Getting optional arguments. */
 		if( argv[i][0]=='-' ){
 			opts->oargs[argv[i][1]-ASCII_BIAS] = argv[i]+2 ;
 			--str_cnt;
 		}
-	}
-	opts->vargs = malloc(SIZEL(opts->vargs[0]) * (size_t)str_cnt) ;
+	opts->vargs = malloc(SIZEL(opts->vargs) * (str_cnt+1)) ;
 	for( int i1=0, i2=0; i1<argc ; ++i1 )
+		/* Getting just arguments, without any option for them. */
 		if( argv[i1][0]!='-'){
 			if(argv[i1][0]=='\\') opts->vargs[i2] = argv[i1]+1 ;
 			else opts->vargs[i2] = argv[i1] ;
@@ -396,26 +397,37 @@ int combo_run(int argc, str argv[]){
 	co_oarg(opts, 'r') && ++addmemx ;
 	/* General multiplier. */
 	ul memx = 1+addmemx ;
-	/* Read words from list. */
+	/* Buffer for file list words. */
 	str *fbufws = malloc(SIZEL(fbufws)) ;
 	*fbufws = NULL ;
+	/* Path to file list. */
 	str pfl = co_oarg(opts, 'l') ;
-	*fbufws = NULL ;
-	if (pfl)
-		fbufws = printf("%s\n", pfl), fgetlines(  fopenin( co_oarg(opts, 'l') )  ) ;
-	/* Read words from standard input. */
+	if (pfl) {
+		/* Reading list. */
+		free(fbufws);
+		fbufws = printf("%s\n", pfl), fgetlines(  fopenin( pfl )  ) ;
+	}
+	puts("got lines from list");
+	/* Buffer for words from standard input. */
 	str *stdbufws = malloc(SIZEL(stdbufws)) ;
 	*stdbufws = NULL ;
-	if (co_oarg(opts, '-'))
+	if (co_oarg(opts, '-')) {
+		/* Read words from standard input. */
+		free(stdbufws);
 		stdbufws = fgetlines( stdin ) ;
+	}
+	puts("got lines from stdin");
 	/* Words amount(without additional words, like reversed or something). */
 	ul wa0 = sslen(fbufws)+sslen(stdbufws)+co_vargamt(opts) ;
+	puts("got all the lens");
 	/* All the words. */
-	ul wa  = wa0*memx ;
+	ul wa = wa0*memx ;
 	/* Getting words from all the inputs into one array. */
-	str *ws      = malloc(sizeof(str)*wa) ;
+	str *ws = malloc(sizeof(str)*wa) ;
+	puts("got memory for words");
 	str *wsarr[] = { co_vargarr(opts), fbufws, stdbufws, NULL } ;
 	sscatarr(ws, wsarr);
+	puts("concatenated all the liens");
 	for( ul i=0 ; i<wa ; ++i ){
 		printf("%s\n", ws[i]);
 	}
