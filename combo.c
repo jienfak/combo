@@ -331,7 +331,6 @@ str *sscatarr(str dst[], str **src){
 	while (*src) sscat(dst, *(src++)) ; return dst ;
 }
 
-
 ul *combo_makmsk(ul mask[], const ul wa, const ul id){
 	return 0 ;
 }
@@ -387,7 +386,7 @@ int combo_run(int argc, str argv[]){
 	struct CatOpts *opts = co_crtopts(argc-1, argv+1) ;
 	/* By some reason malloc in printf can be BROKEN, I'm lazy now to report
 	 * this, but this hack fixes this in MY program, so I don't care. */
-	printf("");
+	/*printf("\b"); */
 	/* Output file. */
 	str pfo = co_oarg(opts, 'o') ;
 	FILE *o   = pfo ? fopenout(pfo) : stdout ;
@@ -417,9 +416,15 @@ int combo_run(int argc, str argv[]){
 	str *ws = malloc(sizeof(str)*wa) ;
 	str *wsarr[] = { co_vargarr(opts), fbufws, stdbufws, NULL } ;
 	sscatarr(ws, wsarr);
+	/* Memory cleaning buffers. */
+	if (pfl)
+		free(fbufws);
+	if (co_oarg(opts, '-'))
+		free(stdbufws);
 	for( ul i=0 ; i<wa ; ++i ){
 		printf("%s\n", ws[i]);
 	}
+	free(ws);
 	return 0 ;
 }
 
