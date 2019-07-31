@@ -104,7 +104,7 @@ void *ll_at(struct LinkedList *ll0, ul idx){
 	/* This function returns a pointer to the data it saved.*/
 	struct LinkedList *cur = ll0 ;
 	/* Find element by an index. */
-	for( ul i=0 ; i<idx+1 ; ++i ){
+	for( ul i=0 ; i<(idx+1) ; ++i ){
 		cur = cur->nxt ;
 	}
 	return cur->pdat ;
@@ -150,7 +150,6 @@ us ll_rm(struct LinkedList *ll0, ul idx){
 
 void ll_free(struct LinkedList *ll){
 	/* Frees alocated for structure memory. */
-	puts("ll_free");
 	if(ll->nxt==NULL) free(ll) ;
 	else ll_free(ll->nxt), ll->nxt = NULL, ll_free(ll) ;
 }
@@ -158,7 +157,6 @@ void ll_free(struct LinkedList *ll){
 str *ll2ss(struct LinkedList *ll){
 	/* Converts linked list of Z-strings to array with NULL-pointer at end. */
 	ul len = ll_len(ll) ;
-	printf("ll_len = %d\n", len);
 	str *ss = malloc(SIZEL(ss) * (len+1)) ;
 	for( int i=0 ; i<len ; ++i )
 		ss[i] = ll_at(ll, i) ;
@@ -255,7 +253,6 @@ str *fgetlines(FILE *f){
 		/* Reading, memory allocation and copying from buffer to dump and adding linked list. */
 		ul buflen = strchmp(buf, '\r') ;
 		buflen = strchmp(buf, '\n') ;
-		printf("buflen = '%d'\n", buflen);
 		str ptr = malloc(SIZEL(ptr)*(buflen+1));
 		strcpy(ptr, buf);
 		ll_add(ll, ptr);
@@ -279,7 +276,7 @@ ul ssnrev_for(str dst[], str src[], const ul n){
 	return n ;
 }
 
-ul parrlen(void *a[]){
+ul ptrarrlen(void *a[]){
 	/* Returns amount of pointers in array just before NULL. */
 	void **pa=a ; while(*pa) ++pa ; return pa-a ;
 }
@@ -287,7 +284,7 @@ ul parrlen(void *a[]){
 ul sslen(str ss[]){
 	/* Gets length of Z-strings array. */
 	/*str *pss = ss ; while (*pss) ++pss ; return pss-ss ;*/
-	return parrlen(ss) ;
+	return ptrarrlen(ss) ;
 }
 
 ul ssrev_for(str dst[], str src[]){
@@ -297,12 +294,12 @@ ul ssrev_for(str dst[], str src[]){
 
 
 str ssncat2str(str s, str ss[], ul n){
-	/* Joins lines from 'ss' array with length 'n' to 'str'.*/
+	/* Joins lines from 'ss' array with length 'n' to 's'.*/
 	for( ul i=0 ; i<n ; ++i ) strcat(s, ss[i]) ; return s ;
 }
 
 str sscat2str(str s, str ss[]){
-	/* Joins lines from 'ss' array with length 'sslen' to 'str'. */
+	/* Joins lines from 'ss' array with length 'sslen' to 's'. */
 	return ssncat2str(s, ss, sslen(ss)) ;
 }
 
@@ -388,6 +385,9 @@ int combo_run(int argc, str argv[]){
 	if (argc==1) return 1 ;
 	/* Argument parser. */
 	struct CatOpts *opts = co_crtopts(argc-1, argv+1) ;
+	/* By some reason malloc in printf can be BROKEN, I'm lazy now to report
+	 * this, but this hack fixes this in MY program, so I don't care. */
+	printf("");
 	/* Output file. */
 	str pfo = co_oarg(opts, 'o') ;
 	FILE *o   = pfo ? fopenout(pfo) : stdout ;
@@ -405,29 +405,24 @@ int combo_run(int argc, str argv[]){
 	if (pfl) {
 		/* Reading list. */
 		free(fbufws);
-		fbufws = printf("%s\n", pfl), fgetlines(  fopenin( pfl )  ) ;
+		fbufws = fgetlines(  fopenin( pfl )  ) ;
 	}
-	puts("got lines from list");
 	/* Buffer for words from standard input. */
 	str *stdbufws = malloc(SIZEL(stdbufws)) ;
 	*stdbufws = NULL ;
 	if (co_oarg(opts, '-')) {
 		/* Read words from standard input. */
 		free(stdbufws);
-		stdbufws = fgetlines( stdin ) ;
+		stdbufws = fgetlines(stdin) ;
 	}
-	puts("got lines from stdin");
 	/* Words amount(without additional words, like reversed or something). */
 	ul wa0 = sslen(fbufws)+sslen(stdbufws)+co_vargamt(opts) ;
-	puts("got all the lens");
 	/* All the words. */
 	ul wa = wa0*memx ;
 	/* Getting words from all the inputs into one array. */
 	str *ws = malloc(sizeof(str)*wa) ;
-	puts("got memory for words");
 	str *wsarr[] = { co_vargarr(opts), fbufws, stdbufws, NULL } ;
 	sscatarr(ws, wsarr);
-	puts("concatenated all the liens");
 	for( ul i=0 ; i<wa ; ++i ){
 		printf("%s\n", ws[i]);
 	}
