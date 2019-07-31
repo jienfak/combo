@@ -397,24 +397,18 @@ int combo_run(int argc, str argv[]){
 	co_oarg(opts, 'r') && ++addmemx ;
 	/* General multiplier. */
 	ul memx = 1+addmemx ;
+	/* Void pointers array to prevent shit. */
+	str voidbuf[] = {NULL} ;
 	/* Buffer for file list words. */
-	str *fbufws = malloc(SIZEL(fbufws)) ;
-	*fbufws = NULL ;
+	str *fbufws = voidbuf ;
 	/* Path to file list. */
 	str pfl = co_oarg(opts, 'l') ;
-	if (pfl) {
-		/* Reading list. */
-		free(fbufws);
+	if (pfl) /* Reading list. */
 		fbufws = fgetlines(  fopenin( pfl )  ) ;
-	}
 	/* Buffer for words from standard input. */
-	str *stdbufws = malloc(SIZEL(stdbufws)) ;
-	*stdbufws = NULL ;
-	if (co_oarg(opts, '-')) {
-		/* Read words from standard input. */
-		free(stdbufws);
+	str *stdbufws = voidbuf ;
+	if (co_oarg(opts, '-')) /* Read words from standard input. */
 		stdbufws = fgetlines(stdin) ;
-	}
 	/* Words amount(without additional words, like reversed or something). */
 	ul wa0 = sslen(fbufws)+sslen(stdbufws)+co_vargamt(opts) ;
 	/* All the words. */
@@ -429,7 +423,7 @@ int combo_run(int argc, str argv[]){
 	return 0 ;
 }
 
-int main(int argc, chr *argv[]){
+int main(int argc, char *argv[]){
 	/* Wrapper to make possible embeded combo into another programs. */
 	return combo_run(argc, argv) ;
 }
