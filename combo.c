@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <ctype.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
@@ -48,22 +50,18 @@ static str    *fgetlines(FILE *file);
 /* Combo functions. */
 static ul     *combomask(ul mask[], const ul wa, const ul id);
 static void    fprintcombos(str *ws[], ul wa, struct Options *opt, FILE *f);
-/*
-void die(const str *errstr, ...){
+
+void die(const str errstr, ...){
 	va_list ap;
 	va_start(ap, errstr);
 	vfprintf(stderr, errstr, ap);
 	va_end(ap);
 	exit(1);
 }
-*/
 
-/*
-void usage(const str *argv0){
-	die("usage: %s [-Vr+] [-lin_file] [-mmax_reps] [-nwords_number] [-oout_file] [-s seps] [words]\n" , argv0);
+void usage(const str argv0){
+	die("usage: %s [-V] [-llist] [-mmax_reps] [-nnwords] [-oout] [-sseps] [words]\n" , argv0);
 }
-*/
-
 
 struct LinkedList *ll_crt(void){
 	/* This function creates first element of list. */
@@ -342,6 +340,7 @@ void combo_fputcmbs(str ws[], ul wa, struct Options *opt, FILE *out){
 }
 
 struct CatOpts *co_crtopts(ul argc, str argv[]){
+	/* Parse arguments and return pointer to the structure with it. */
 	struct CatOpts *opts = malloc(sizeof(struct CatOpts)) ;
 	for( int i=0 ; i<96 ; ++i )
 		opts->oargs[i] = NULL ;
@@ -365,18 +364,49 @@ struct CatOpts *co_crtopts(ul argc, str argv[]){
 }
 
 str co_oarg(struct CatOpts *opts, chr c){
+	/* Get optional argument by option. */
 	return opts->oargs[c-ASCII_BIAS] ;
 }
 
 str co_varg(struct CatOpts *opts, int i){
+	/* Get void argument by the index. */
 	return opts->vargs[i] ;
 }
 
 str *co_vargarr(struct CatOpts *opts){
+	/* Returns pointer to the void arguments array. */
 	return opts->vargs ;
 }
-int co_vargamt(struct CatOpts *opts){
+
+int co_vargcnt(int argc, str argv[]){
+	/* Count void arguments in argv. */
+	int cnt = 0 ;
+	for( int i=0 ; i<argc ; ++i )
+		if (argv[i][0]!='-') ++cnt ;
+	return cnt ;
+}
+
+int co_oargmap(int argc, str argv[], chr opt){
+	/* Maps options in argv and returns it's index. */
+	for( int i=0 ; i<argc ; ++i )
+		if( argv[i][0]=='-' && argv[i][1]==opt ) return i ;
+	return -1 ;
+}
+
+int co_varglen(struct CatOpts *opts){
+	/* Returns amount of void arguments. */
 	return sslen(opts->vargs) ;
+}
+
+chr isnum(str s){
+	/* Check for is Z-string decimal number. */
+	/*Empty string check. */
+	if(!*s) return  0 ;
+	while(*s){
+		if(!isdigit(*s)) return 0 ;
+		++s;
+	}
+	return 1 ;
 }
 
 int combo_run(int argc, str argv[]){
@@ -390,40 +420,42 @@ int combo_run(int argc, str argv[]){
 	/* Output file. */
 	str pfo = co_oarg(opts, 'o') ;
 	FILE *o   = pfo ? fopenout(pfo) : stdout ;
-	/* Memory multiplier for additional word variants. */
-	ul addmemx = 0 ;
-	/* Reversed words take memory too, so increment 'addmemx'. */
-	co_oarg(opts, 'r') && ++addmemx ;
-	/* General multiplier. */
-	ul memx = 1+addmemx ;
 	/* Void pointers array to prevent shit. */
-	str voidbuf[] = {NULL} ;
+	str voidbuf[] = { NULL } ;
 	/* Buffer for file list words. */
 	str *fbufws = voidbuf ;
 	/* Path to file list. */
 	str pfl = co_oarg(opts, 'l') ;
-	if (pfl) /* Reading list. */
-		fbufws = fgetlines(  fopenin( pfl )  ) ;
+	if (pfl) fbufws = fgetlines(  fopenin( pfl )  ) ;
 	/* Buffer for words from standard input. */
 	str *stdbufws = voidbuf ;
-	if (co_oarg(opts, '-')) /* Read words from standard input. */
-		stdbufws = fgetlines(stdin) ;
-	/* Words amount(without additional words, like reversed or something). */
-	ul wa0 = sslen(fbufws)+sslen(stdbufws)+co_vargamt(opts) ;
-	/* All the words. */
-	ul wa = wa0*memx ;
+	if (co_oarg(opts, '-')) stdbufws = fgetlines(stdin) ;
+	/* All the words amount. */
+	ul wa = sslen(fbufws)+sslen(stdbufws)+co_varglen(opts) ;
+	/* Basic words amount, it makes possible add more versions of
+	 * one word with different programs than just 'combo'. */
+	ul wa0 = wa ;
+	str a = co_oarg(opts, 'a') ;
+	if (a) {
+		if( isnum(a) ){ wa0 = atoi(a) ; }
+		else if(!*a){ /* Empty argument. */
+			str *amap = argv + co_oargmap(argc, argv, 'a') + 1 ;
+			int *amaplen = sslen(amap) ;
+			wa0 =  co_varglen(opts) - co_vargcnt(amaplen, amap) ;
+		}else{ usage(*argv); }
+		if(wa0>wa) usage(*argv) ;
+	}
 	/* Getting words from all the inputs into one array. */
-	str *ws = malloc(sizeof(str)*wa) ;
+	str *ws = malloc(SIZEL(ws)*wa) ;
+	/* Array to concatenate and get words in one only. */
 	str *wsarr[] = { co_vargarr(opts), fbufws, stdbufws, NULL } ;
 	sscatarr(ws, wsarr);
 	/* Memory cleaning buffers. */
-	if (pfl)
-		free(fbufws);
-	if (co_oarg(opts, '-'))
-		free(stdbufws);
-	for( ul i=0 ; i<wa ; ++i ){
-		printf("%s\n", ws[i]);
-	}
+	if (pfl) free(fbufws) ;
+	if (co_oarg(opts, '-')) free(stdbufws) ;
+	for( ul i=0 ; i<wa ; ++i ){ printf("%s\n", ws[i]); }
+	/* We don't need words anymore. */
+	for( ul i=co_varglen(opts) ; i<wa ; ++i ) free(ws[i]) ;
 	free(ws);
 	return 0 ;
 }
