@@ -1,85 +1,76 @@
 # Makefile for one-bin C programs.
 .PHONY: all dbg clean install uninstall show_info  \
             show_options show_artifacts show_paths
+
 include config.mk
+include os.mk
+include $(OS).mk
 SHOW_INFO = show_options show_artifacts show_paths
 CLEAN     = clean_dist clean_artifacts
-
-
 .SILENT: install uninstall clean $(CLEAN)
+
 
 all : show_options strip
 
 dbg : set_dbgflags show_info $(CLEAN) $(TGT)
-	$(LD) -o $(TGT) $(LDFLAGS) $(OBJ)
+	$(LD) $(OUTFLAG) $(TGT) $(LDFLAGS) $(OBJ)
 
 set_dbgflags :
 	$(eval CFLAGS = $(DBGFLAGS))
 
 show_options :
-	@echo "'$(TGT)' '$@':"
-	@echo "CFLAGS   = '$(CFLAGS)' ;"
-	@echo "LDFLAGS  = '$(LDFLAGS)' ;"
-	@echo "CC       = '$(CC)' ;"
-	@echo "LD       = '$(LD)' ;"
+	@$(ECHO) "'$(TGT)' '$@':"
+	@$(ECHO) "OS       =  '$(OS)' ;"
+	@$(ECHO) "CFLAGS   = '$(CFLAGS)' ;"
+	@$(ECHO) "LDFLAGS  = '$(LDFLAGS)' ;"
+	@$(ECHO) "CC       = '$(CC)' ;"
+	@$(ECHO) "LD       = '$(LD)' ;"
 
 show_artifacts :
-	@echo "'$(TGT)' '$@' :"
-	@echo "SRC      = '$(SRC)' ;"
-	@echo "HDR      = '$(HDR)' ;"
-	@echo "OBJ      = '$(OBJ)' ;"
-	@echo "TARDIR   = '$(TARDIR);'"
-	@echo "TARARC   = '$(TARARC)'. "
+	@$(ECHO) "'$(TGT)' '$@' :"
+	@$(ECHO) "SRC      = '$(SRC)' ;"
+	@$(ECHO) "HDR      = '$(HDR)' ;"
+	@$(ECHO) "OBJ      = '$(OBJ)' ;"
+	@$(ECHO) "TARDIR   = '$(TARDIR);'"
+	@$(ECHO) "TARARC   = '$(TARARC)'. "
 
 show_paths :
-	@echo "'$(TGT)' '$@' :"
-	@echo "ROOTDIR  = '$(ROOTDIR)' ;"
-	@echo "DIRPREFIX= '$(DIRPREFIX)' ;"
-	@echo "MANPREFIX= '$(MANPREFIX)' ;"
-	@echo "DESTDIR  = '$(DESTDIR)' ."
+	@$(ECHO) "'$(TGT)' '$@' :"
+	@$(ECHO) "ROOTDIR  = '$(ROOTDIR)' ;"
+	@$(ECHO) "DIRPREFIX= '$(DIRPREFIX)' ;"
+	@$(ECHO) "MANPREFIX= '$(MANPREFIX)' ;"
+	@$(ECHO) "DESTDIR  = '$(DESTDIR)' ."
 
 show_info : $(SHOW_INFO)
 
-
 $(TGT) : $(OBJ)
-	@echo "[$@]"
-	$(LD) -o $@ $(OBJ) $(CFLAGS)
+	@$(ECHO) "[$@]"
+	$(LD) $(LDFLAGS) $(OUTFLAG) $@ $(OBJ)
 
 $(MANUAL) :
-
 strip : $(TGT)
-	strip -v $<
+	$(STRIP) $<
 
-%.o : %.c
-	@echo "[$@]"
-	$(CC) -o $@ $(CFLAGS) -c $<
+%.$(OBJEXT) : %.$(CEXT)
+	@$(ECHO) "[$@]"
+	$(CC) $(OUTFLAG) $@ $(CFLAGS) $(OBJFLAG) $<
 
 $(SRC) : $(HDR)
 
 clean: $(CLEAN)
 
 clean_dist :
-	rm -vrf $(TARDIR) $(TARARC) $(TAROUT)
+	$(RM) $(TARDIR) $(TARARC) $(TARGZARC)
 
 clean_artifacts :
-	rm -vrf $(OBJ) $(TGT)
-
-dist :  $(TAROUT)
-
-$(TAROUT) : clean $(TARARC)
-	gzip -f $(TARARC)
-
-$(TARARC) : $(TARDIR)
-	tar -vcf $(TARARC) $(TARDIR)
-
-$(TARDIR) : $(DISTFILES)
-	mkdir -pv $(TARDIR)
-	cp -vR $(subst $(TARDIR),,$(wildcard *)) $(TARDIR)
+	$(RM) $(OBJ) $(TGT)
 
 install : $(TGT) $(MANUAL)
-	install -v $(TGT) $(DESTDIR)/$(BINPREFIX)/
-	sed "s/VERSION/$(VERSION)/g" <$(MANUAL)>$(DESTDIR)/$(MANPREFIX)/$(MANSECTPREFIX)/$(MANUAL)
+	$(INSTALL) $(TGT) $(DESTDIR)/$(BINPREFIX)/
+	$(SED) "s/VERSION/$(VERSION)/g" <$(MANUAL) >$(DESTDIR)/$(MANPREFIX)/$(MANSECTPREFIX)/$(MANUAL)
 
 uninstall :
-	rm -vrf $(DESTDIR)/$(BINPREFIX)/$(TGT)
-	rm -vrf $(DESTDIR)/$(MANPREFIX)/$(MANSECTPREFIX)/$(MANUAL)
+	$(RM) $(DESTDIR)/$(BINPREFIX)/$(TGT)
+	$(RM) $(DESTDIR)/$(MANPREFIX)/$(MANSECTPREFIX)/$(MANUAL)
+
+include tarball.mk
