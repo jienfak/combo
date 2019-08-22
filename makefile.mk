@@ -40,6 +40,7 @@ show_paths :
 	@$(ECHO) "DIRPREFIX= '$(DIRPREFIX)' ;"
 	@$(ECHO) "MANPREFIX= '$(MANPREFIX)' ;"
 	@$(ECHO) "DESTDIR  = '$(DESTDIR)' ."
+	@$(ECHO) "MAKEFILE_LIST = '$(MAKEFILE_LIST)'"
 
 show_info : $(SHOW_INFO)
 

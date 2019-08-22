@@ -440,7 +440,7 @@ int combo_run(int argc, str argv[]){
 		if( isnum(a) ){ wa0 = atoi(a) ; }
 		else if(!*a){ /* Empty argument. */
 			str *amap = argv + co_oargmap(argc, argv, 'a') + 1 ;
-			int *amaplen = sslen(amap) ;
+			int amaplen = sslen(amap) ;
 			wa0 =  co_varglen(opts) - co_vargcnt(amaplen, amap) ;
 		}else{ usage(*argv); }
 		if(wa0>wa) usage(*argv) ;
